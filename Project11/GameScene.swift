@@ -10,6 +10,14 @@ import SpriteKit
 class GameScene: SKScene, SKPhysicsContactDelegate {
     var scoreLabel: SKLabelNode!
     var editLabel: SKLabelNode!
+    var ballsLabel: SKLabelNode!
+    var balls = [SKSpriteNode]()
+    
+    var ballsCount = 5 {
+        didSet {
+            ballsLabel.text = "Balls left: \(ballsCount)"
+        }
+    }
     
     var score = 0 {
         didSet {
@@ -37,6 +45,13 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         physicsBody = SKPhysicsBody(edgeLoopFrom: frame)
         physicsWorld.contactDelegate = self
         
+        balls.append(SKSpriteNode(imageNamed: "ballBlue"))
+        balls.append(SKSpriteNode(imageNamed: "ballCyan"))
+        balls.append(SKSpriteNode(imageNamed: "ballGreen"))
+        balls.append(SKSpriteNode(imageNamed: "ballGrey"))
+        balls.append(SKSpriteNode(imageNamed: "ballPurple"))
+        balls.append(SKSpriteNode(imageNamed: "ballYellow"))
+        
         makeSlot(at: CGPoint(x: 128, y: 46), isGood: true)
         makeSlot(at: CGPoint(x: 384, y: 46), isGood: false)
         makeSlot(at: CGPoint(x: 640, y: 46), isGood: true)
@@ -58,6 +73,11 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         editLabel.text = "Edit"
         editLabel.position = CGPoint(x: 80, y: 650)
         addChild(editLabel)
+        
+        ballsLabel = SKLabelNode(fontNamed: "Chalkduster")
+        
+        ballsLabel.position = CGPoint(x: 450, y: 650)
+        addChild(ballsLabel)
     }
     
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
@@ -74,19 +94,28 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
                 let box = SKSpriteNode(color: UIColor(red: CGFloat.random(in: 0...1), green: CGFloat.random(in: 0...1), blue: CGFloat.random(in: 0...1), alpha: 1), size: size)
                 box.zRotation = CGFloat.random(in: 0...3)
                 box.position = location
+                box.name = "box"
                 
                 box.physicsBody = SKPhysicsBody(rectangleOf: box.size)
                 box.physicsBody?.isDynamic = false
                 addChild(box)
                 
             } else {
-                let ball = SKSpriteNode(imageNamed: "ballRed")
+//                let ball = SKSpriteNode(imageNamed: "ballRed")
+                if (ballsCount - 5) < 5 {
+                guard let ball = balls.randomElement() else { return }
                 ball.physicsBody = SKPhysicsBody(circleOfRadius: ball.size.width / 2.0)
                 ball.physicsBody?.restitution = 0.4
                 ball.physicsBody?.contactTestBitMask = ball.physicsBody?.collisionBitMask ?? 0
                 ball.position = CGPoint(x: location.x, y: 650)
                 ball.name = "ball"
+                ball.removeFromParent()
                 addChild(ball)
+                    ballsCount -= 1
+                }
+                if ballsCount == 0 {
+                    ballsCount = 5
+                }
             }
         }
     }
@@ -127,17 +156,20 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         slotGlow.run(spinForever)
     }
     
-    func collision(between ball: SKNode, object: SKNode) {
+    func collision(between ball: SKNode, and box: SKNode, object: SKNode) {
         if object.name == "good" {
-            destroy(ball: ball)
+            destroyBall(ball: ball)
+            ballsCount += 1
             score += 1
         } else if object.name == "bad" {
-            destroy(ball: ball)
+            destroyBall(ball: ball)
             score -= 1
+        } else if object.name == "box" {
+            destroyBox(box: box)
         }
     }
     
-    func destroy(ball: SKNode) {
+    func destroyBall(ball: SKNode) {
         if let fireParticles = SKEmitterNode(fileNamed: "FireParticles") {
             fireParticles.position = ball.position
             addChild(fireParticles)
@@ -146,14 +178,18 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         ball.removeFromParent()
     }
     
+    func destroyBox(box: SKNode) {
+        box.removeFromParent()
+    }
+    
     func didBegin(_ contact: SKPhysicsContact) {
         guard let bodyA = contact.bodyA.node else { return }
         guard let bodyB = contact.bodyB.node else { return }
         
         if contact.bodyA.node?.name == "ball" {
-            collision(between: bodyA, object: bodyB)
+            collision(between: bodyA, and: bodyB, object: bodyB)
         } else if contact.bodyB.node?.name == "ball" {
-            collision(between: bodyB, object: bodyA)
+            collision(between: bodyB, and: bodyA, object: bodyA)
         }
     }
 
